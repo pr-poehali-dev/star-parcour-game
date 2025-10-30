@@ -88,9 +88,9 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
   const keysPressed = useRef<Set<string>>(new Set());
   const animationFrameId = useRef<number>();
 
-  const GRAVITY = 0.5;
-  const JUMP_FORCE = -12;
-  const MOVE_SPEED = 5;
+  const GRAVITY = 0.4;
+  const JUMP_FORCE = -10;
+  const MOVE_SPEED = 3;
 
   const currentLevelData = levels[currentLevel - 1];
 
@@ -137,7 +137,19 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const gameLoop = () => {
+    let lastTime = performance.now();
+    const targetFPS = 60;
+    const frameDelay = 1000 / targetFPS;
+
+    const gameLoop = (currentTime: number) => {
+      const deltaTime = currentTime - lastTime;
+      
+      if (deltaTime < frameDelay) {
+        animationFrameId.current = requestAnimationFrame(gameLoop);
+        return;
+      }
+      
+      lastTime = currentTime - (deltaTime % frameDelay);
       setPlayer(prevPlayer => {
         const newPlayer = { ...prevPlayer };
 
@@ -248,7 +260,7 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
       animationFrameId.current = requestAnimationFrame(gameLoop);
     };
 
-    gameLoop();
+    animationFrameId.current = requestAnimationFrame(gameLoop);
 
     return () => {
       if (animationFrameId.current) {
