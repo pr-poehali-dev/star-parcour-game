@@ -89,6 +89,8 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
   const [exitPortal, setExitPortal] = useState<{x: number, y: number} | null>(null);
   const keysPressed = useRef<Set<string>>(new Set());
   const animationFrameId = useRef<number>();
+  const playerRef = useRef<GameObject>(player);
+  const starsRef = useRef<Star[]>(stars);
 
   const GRAVITY = 0.4;
   const JUMP_FORCE = -10;
@@ -97,7 +99,13 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
   const currentLevelData = levels[currentLevel - 1];
 
   useEffect(() => {
-    setStars(levels[currentLevel - 1]?.stars || []);
+    playerRef.current = player;
+  }, [player]);
+
+  useEffect(() => {
+    const initialStars = levels[currentLevel - 1]?.stars || [];
+    setStars(initialStars);
+    starsRef.current = initialStars;
     setPlayer({
       x: 50,
       y: 500,
@@ -196,36 +204,41 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
         return newPlayer;
       });
 
-      setStars(prevStars => {
-        const newStars = prevStars.map(star => {
-          if (
-            !star.collected &&
-            player.x < star.x + 20 &&
-            player.x + player.width > star.x &&
-            player.y < star.y + 20 &&
-            player.y + player.height > star.y
-          ) {
-            onCollectStar(1);
-            return { ...star, collected: true };
-          }
-          return star;
-        });
+      const currentPlayer = playerRef.current;
+      let starsChanged = false;
+      
+      const newStars = starsRef.current.map(star => {
+        if (
+          !star.collected &&
+          currentPlayer.x < star.x + 20 &&
+          currentPlayer.x + currentPlayer.width > star.x &&
+          currentPlayer.y < star.y + 20 &&
+          currentPlayer.y + currentPlayer.height > star.y
+        ) {
+          onCollectStar(1);
+          starsChanged = true;
+          return { ...star, collected: true };
+        }
+        return star;
+      });
 
+      if (starsChanged) {
+        starsRef.current = newStars;
+        setStars(newStars);
+        
         const allCollected = newStars.every(s => s.collected);
         if (allCollected && newStars.length > 0 && !allStarsCollected) {
           setAllStarsCollected(true);
           setExitPortal({ x: canvas.width - 100, y: canvas.height - 100 });
         }
-
-        return newStars;
-      });
+      }
 
       if (exitPortal && allStarsCollected) {
         if (
-          player.x < exitPortal.x + 50 &&
-          player.x + player.width > exitPortal.x &&
-          player.y < exitPortal.y + 50 &&
-          player.y + player.height > exitPortal.y
+          currentPlayer.x < exitPortal.x + 50 &&
+          currentPlayer.x + currentPlayer.width > exitPortal.x &&
+          currentPlayer.y < exitPortal.y + 50 &&
+          currentPlayer.y + currentPlayer.height > exitPortal.y
         ) {
           setTimeout(() => {
             onLevelComplete(currentLevel);
@@ -256,7 +269,7 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
         ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
       });
 
-      stars.forEach(star => {
+      starsRef.current.forEach(star => {
         if (!star.collected) {
           ctx.fillStyle = '#FFD700';
           ctx.beginPath();
