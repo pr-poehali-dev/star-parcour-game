@@ -85,6 +85,8 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
   const [stars, setStars] = useState<Star[]>(levels[currentLevel - 1]?.stars || []);
   const [isPaused, setIsPaused] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [allStarsCollected, setAllStarsCollected] = useState(false);
+  const [exitPortal, setExitPortal] = useState<{x: number, y: number} | null>(null);
   const keysPressed = useRef<Set<string>>(new Set());
   const animationFrameId = useRef<number>();
 
@@ -105,6 +107,8 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
       isJumping: false
     });
     setGameStarted(false);
+    setAllStarsCollected(false);
+    setExitPortal(null);
   }, [currentLevel]);
 
   useEffect(() => {
@@ -208,14 +212,28 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
         });
 
         const allCollected = newStars.every(s => s.collected);
-        if (allCollected && newStars.length > 0) {
-          setTimeout(() => {
-            onLevelComplete(currentLevel);
-          }, 500);
+        if (allCollected && newStars.length > 0 && !allStarsCollected) {
+          setAllStarsCollected(true);
+          setExitPortal({ x: canvas.width - 100, y: canvas.height - 100 });
         }
 
         return newStars;
       });
+
+      if (exitPortal && allStarsCollected) {
+        if (
+          player.x < exitPortal.x + 50 &&
+          player.x + player.width > exitPortal.x &&
+          player.y < exitPortal.y + 50 &&
+          player.y + player.height > exitPortal.y
+        ) {
+          setTimeout(() => {
+            onLevelComplete(currentLevel);
+            setAllStarsCollected(false);
+            setExitPortal(null);
+          }, 300);
+        }
+      }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -250,6 +268,25 @@ export default function Game2D({ onCollectStar, onLevelComplete, currentLevel }:
           ctx.fillText('⭐', star.x + 10, star.y + 15);
         }
       });
+
+      if (exitPortal) {
+        const portalGradient = ctx.createRadialGradient(
+          exitPortal.x + 25, exitPortal.y + 25, 10,
+          exitPortal.x + 25, exitPortal.y + 25, 30
+        );
+        portalGradient.addColorStop(0, '#D946EF');
+        portalGradient.addColorStop(0.5, '#8B5CF6');
+        portalGradient.addColorStop(1, 'rgba(139, 92, 246, 0.3)');
+        ctx.fillStyle = portalGradient;
+        ctx.beginPath();
+        ctx.arc(exitPortal.x + 25, exitPortal.y + 25, 30, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#FFF';
+        ctx.font = '32px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌀', exitPortal.x + 25, exitPortal.y + 35);
+      }
 
       ctx.fillStyle = '#D946EF';
       ctx.fillRect(player.x, player.y, player.width, player.height);
